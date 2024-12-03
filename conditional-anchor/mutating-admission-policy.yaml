@@ -1,0 +1,51 @@
+apiVersion: admissionregistration.k8s.io/v1alpha1
+kind: MutatingAdmissionPolicy
+metadata:
+  name: "mutate-policy"
+spec:
+  matchConstraints:
+    resourceRules:
+    - apiGroups:   ["discovery.k8s.io"]
+      apiVersions: ["v1"]
+      operations:  ["CREATE"]
+      resources:   ["endpointslices"]
+  failurePolicy: Fail
+  reinvocationPolicy: Never
+  mutations:
+    - patchType: "JSONPatch"
+      jsonPatch:
+        expression: >
+          [
+            JSONPatch{
+              op: "add", path: "/ports",
+              value: object.ports.map(
+                p, 
+                {
+                  "name": p.name,
+                  "port": dyn(p.name.contains("secure") ? 6443 : p.port)
+                }
+              )
+            }
+          ]
+
+# The following expression will remove the ports that do not contain "secure" in their name.
+# [
+#   JSONPatch{
+#     op: "add", path: "/ports",
+#     value: object.ports.filter(p, p.name.contains("secure")).map(
+#       p, 
+#       {
+#         "name": p.name,
+#         "port": dyn(6443)
+#       }
+#     )
+#   }
+# ]
+---
+# Policy Binding
+apiVersion: admissionregistration.k8s.io/v1alpha1
+kind: MutatingAdmissionPolicyBinding
+metadata:
+  name: "mutate-policy-binding"
+spec:
+  policyName: "mutate-policy"

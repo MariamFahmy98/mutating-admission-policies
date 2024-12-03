@@ -1,0 +1,22 @@
+apiVersion: kyverno.io/v1
+kind: ClusterPolicy
+metadata:
+  name: foreach-json-patch
+spec:
+  rules:
+    - name: add-security-context
+      match:
+        any:
+        - resources:
+            kinds:
+              - Pod
+            operations:
+              - CREATE
+      mutate:
+        foreach: 
+        - list: "request.object.spec.containers"
+          patchesJson6902: |-
+            - path: /spec/containers/{{elementIndex}}/securityContext
+              op: add
+              value:
+                runAsNonRoot: true            

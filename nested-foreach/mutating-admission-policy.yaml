@@ -1,0 +1,38 @@
+apiVersion: admissionregistration.k8s.io/v1alpha1
+kind: MutatingAdmissionPolicy
+metadata:
+  name: "mutate-policy"
+spec:
+  matchConstraints:
+    resourceRules:
+    - apiGroups:   ["networking.k8s.io"]
+      apiVersions: ["v1"]
+      operations:  ["CREATE"]
+      resources:   ["ingresses"]
+  failurePolicy: Fail
+  reinvocationPolicy: Never
+  mutations:
+    - patchType: "JSONPatch"
+      jsonPatch:
+        expression: >
+          [
+            JSONPatch{
+              op: "replace", path: "/spec/tls",
+              value: object.spec.tls.map(
+                t, 
+                {
+                  "secretName": t.secretName, 
+                  "hosts": dyn(t.hosts.map(h, h.replace(".old.com", ".new.com")))
+                }
+              )
+            }
+          ]
+
+---
+# Policy Binding
+apiVersion: admissionregistration.k8s.io/v1alpha1
+kind: MutatingAdmissionPolicyBinding
+metadata:
+  name: "mutate-policy-binding"
+spec:
+  policyName: "mutate-policy"

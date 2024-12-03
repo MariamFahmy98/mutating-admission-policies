@@ -1,0 +1,22 @@
+apiVersion: kyverno.io/v1
+kind: ClusterPolicy
+metadata:
+  name: add-safe-to-evict
+  annotations:
+    pod-policies.kyverno.io/autogen-controllers: none
+spec:
+  rules:
+  - name: annotate-empty-dir
+    match:
+      any:
+      - resources:
+          kinds:
+          - Pod
+    mutate:
+      patchStrategicMerge:
+        metadata:
+          annotations:
+            +(cluster-autoscaler.kubernetes.io/safe-to-evict): true
+        spec:
+          volumes:
+          - <(emptyDir): {}

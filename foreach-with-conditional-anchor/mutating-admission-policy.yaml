@@ -1,0 +1,41 @@
+apiVersion: admissionregistration.k8s.io/v1alpha1
+kind: MutatingAdmissionPolicy
+metadata:
+  name: "mutate-policy"
+spec:
+  matchConstraints:
+    resourceRules:
+    - apiGroups:   [""]
+      apiVersions: ["v1"]
+      operations:  ["CREATE"]
+      resources:   ["pods"]
+  failurePolicy: Fail
+  reinvocationPolicy: Never
+  mutations:
+    - patchType: "ApplyConfiguration"
+      applyConfiguration:
+        expression: >
+          Object{
+              spec: Object.spec{
+                  containers: object.spec.containers.map(c,
+                      Object.spec.containers{
+                          name: c.name,
+                          securityContext: c.?securityContext.?allowPrivilegeEscalation.hasValue() ?
+                              Object.spec.containers.securityContext{
+                                  allowPrivilegeEscalation: c.securityContext.allowPrivilegeEscalation
+                              } :
+                              Object.spec.containers.securityContext{
+                                  allowPrivilegeEscalation: false
+                              }
+                      }
+                  )
+              }
+          }
+---
+# Policy Binding
+apiVersion: admissionregistration.k8s.io/v1alpha1
+kind: MutatingAdmissionPolicyBinding
+metadata:
+  name: "mutate-policy-binding"
+spec:
+  policyName: "mutate-policy"

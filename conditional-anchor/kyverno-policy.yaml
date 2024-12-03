@@ -1,0 +1,18 @@
+apiVersion: kyverno.io/v1
+kind: ClusterPolicy
+metadata:
+  name: policy-set-port
+spec:
+  rules:
+  - name: set-port
+    match:
+      any:
+      - resources:
+          kinds :
+            - Endpoints
+    mutate:
+      patchStrategicMerge:
+        subsets:
+        - ports:
+          - (name): "secure*"
+            port: 6443

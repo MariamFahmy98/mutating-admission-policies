@@ -1,0 +1,48 @@
+apiVersion: admissionregistration.k8s.io/v1alpha1
+kind: MutatingAdmissionPolicy
+metadata:
+  name: "mutate-policy"
+spec:
+  matchConstraints:
+    resourceRules:
+    - apiGroups:   [""]
+      apiVersions: ["v1"]
+      operations:  ["CREATE"]
+      resources:   ["pods"]
+  matchConditions:
+    - name: check-container-image
+      expression: object.spec.containers.exists(c, c.image.contains("corp.reg.com/"))
+  failurePolicy: Fail
+  reinvocationPolicy: Never
+  mutations:
+    - patchType: "JSONPatch"
+      jsonPatch:
+        expression: >
+          [
+            JSONPatch{
+              op: "replace", path: "/spec/imagePullSecrets",
+              value: [{"name": "new-secret"}]
+            }
+          ]
+
+# DOESN'T WORK because imagePullSecrets is an atomic array. we should use JSONPatch.
+# - patchType: "ApplyConfiguration"
+#   applyConfiguration:
+#     expression: >
+#       object.spec.containers.exists(c, c.image.contains("corp.reg.com/")) ?
+#           Object{
+#               spec: Object.spec{
+#                   imagePullSecrets: [Object.spec.imagePullSecrets{
+#                       name: "my-secret"
+#                   }]
+#               }
+#           } :
+#           Object{}
+---
+# Policy Binding
+apiVersion: admissionregistration.k8s.io/v1alpha1
+kind: MutatingAdmissionPolicyBinding
+metadata:
+  name: "mutate-policy-binding"
+spec:
+  policyName: "mutate-policy"

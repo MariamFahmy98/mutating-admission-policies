@@ -1,0 +1,19 @@
+apiVersion: kyverno.io/v1
+kind: ClusterPolicy
+metadata:
+  name: add-imagepullsecrets
+spec:
+  rules:
+  - name: add-imagepullsecret
+    match:
+      any:
+      - resources:
+          kinds:
+          - Pod
+    mutate:
+      patchStrategicMerge:
+        spec:
+          containers:
+          - <(image): "corp.reg.com/*"
+          imagePullSecrets:
+          - name: my-secret
